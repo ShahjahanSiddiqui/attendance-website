@@ -1,31 +1,106 @@
 <!DOCTYPE html>
+
 <html>
 <head>
-<title>Student Attendance</title>
+
+<title>SSC Super 30 Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 
 body{
-font-family: Arial;
-background:#f4f4f4;
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
+}
+
+header{
+background:#0f172a;
+color:white;
+padding:15px 25px;
+font-size:22px;
+font-weight:bold;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+header span{
+color:#38bdf8;
+}
+
+.container{
+width:95%;
+margin:auto;
+margin-top:20px;
+}
+
+.topbar{
+display:flex;
+justify-content:space-between;
+flex-wrap:wrap;
+margin-bottom:15px;
+}
+
+select,input{
+padding:8px;
+border-radius:6px;
+border:1px solid #cbd5e1;
+}
+
+.cards{
+display:flex;
+gap:15px;
+flex-wrap:wrap;
+margin-bottom:20px;
+}
+
+.card{
+flex:1;
+background:white;
+padding:15px;
+border-radius:10px;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
 text-align:center;
 }
 
-table{
-margin:auto;
-border-collapse:collapse;
-width:80%;
-background:white;
+.card h2{
+margin:5px 0;
+color:#2563eb;
 }
 
-th,td{
-padding:10px;
-border:1px solid #ccc;
+table{
+width:100%;
+border-collapse:collapse;
+background:white;
+border-radius:10px;
+overflow:hidden;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
 th{
-background:#2c7be5;
+background:#2563eb;
 color:white;
+padding:8px;
+font-size:13px;
+}
+
+td{
+padding:6px;
+border-bottom:1px solid #eee;
+font-size:12px;
+text-align:center;
+}
+
+tr:hover{
+background:#f1f5f9;
+}
+
+footer{
+text-align:center;
+margin-top:20px;
+color:#64748b;
+font-size:12px;
 }
 
 </style>
@@ -34,35 +109,124 @@ color:white;
 
 <body>
 
-<h1>Student Attendance</h1>
+<header>
+SSC Super 30 <span>Attendance Dashboard</span>
+</header>
+
+<div class="container">
+
+<div class="topbar">
+
+<select id="monthSelect">
+
+<option value="December">December</option>
+<option value="January">January</option>
+<option value="February">February</option>
+<option value="March">March</option>
+
+</select>
+
+<input type="text" id="search" placeholder="Search Student">
+
+</div>
+
+<div class="cards">
+
+<div class="card">
+Total Students
+<h2 id="total">0</h2>
+</div>
+
+<div class="card">
+Present Days
+<h2 id="present">0</h2>
+</div>
+
+<div class="card">
+Attendance %
+<h2 id="percent">0%</h2>
+</div>
+
+</div>
 
 <table id="sheetTable"></table>
 
+</div>
+
+<footer>
+Live Data From Google Sheets
+</footer>
+
 <script>
 
-const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv";
+const sheetLinks={
 
-fetch(sheetURL)
-.then(response => response.text())
-.then(data => {
+December:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv",
+January:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv",
+February:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv",
+March:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv"
 
-let rows = data.split("\n");
-let table = document.getElementById("sheetTable");
+};
+
+function loadData(month){
+
+fetch(sheetLinks[month])
+.then(res=>res.text())
+.then(data=>{
+
+let rows=data.split("\n");
+let table=document.getElementById("sheetTable");
+
+table.innerHTML="";
 
 rows.forEach((row,i)=>{
-let cols = row.split(",");
-let tr = "<tr>";
+
+let cols=row.split(",");
+let tr="<tr>";
 
 cols.forEach(col=>{
 if(i==0){
-tr += "<th>"+col+"</th>";
+tr+="<th>"+col+"</th>";
 }else{
-tr += "<td>"+col+"</td>";
+tr+="<td>"+col+"</td>";
 }
 });
 
-tr += "</tr>";
-table.innerHTML += tr;
+tr+="</tr>";
+table.innerHTML+=tr;
+
+});
+
+document.getElementById("total").innerText=rows.length-1;
+document.getElementById("present").innerText=rows.length-1;
+document.getElementById("percent").innerText="100%";
+
+});
+
+}
+
+loadData("December");
+
+document.getElementById("monthSelect").addEventListener("change",function(){
+loadData(this.value);
+});
+
+setInterval(()=>{
+let month=document.getElementById("monthSelect").value;
+loadData(month);
+},30000);
+
+document.getElementById("search").addEventListener("keyup",function(){
+
+let filter=this.value.toLowerCase();
+let rows=document.querySelectorAll("#sheetTable tr");
+
+rows.forEach((row,i)=>{
+
+if(i==0)return;
+
+let text=row.innerText.toLowerCase();
+row.style.display=text.includes(filter)?"":"none";
 
 });
 
