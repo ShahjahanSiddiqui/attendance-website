@@ -1,93 +1,75 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Student Attendance Dashboard</title>
+<title>SSC Super 30 Dashboard</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
+
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
 <style>
-
-body{
-font-family:Arial;
-background:#f8fafc;
-}
-
-.loader{
-border-top-color:#3498db;
-animation:spin 1s linear infinite;
-}
-
-@keyframes spin{
-0%{transform:rotate(0deg);}
-100%{transform:rotate(360deg);}
-}
-
-.status-present{background:#dcfce7;color:#166534;}
-.status-absent{background:#fee2e2;color:#991b1b;}
-
+body{font-family:Arial;background:#f1f5f9}
+.loader{border-top-color:#3498db;animation:spin 1s linear infinite}
+@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.status-present{background:#dcfce7;color:#166534}
+.status-absent{background:#fee2e2;color:#991b1b}
 </style>
 
 </head>
 
-<body class="p-6">
+<body>
 
-<div id="loading" class="flex flex-col items-center justify-center">
-<div class="loader border-4 border-gray-200 rounded-full h-10 w-10 mb-4"></div>
-<p class="text-gray-500">Loading Google Sheet Data...</p>
+<div id="loading" class="fixed inset-0 flex items-center justify-center bg-white">
+<div class="loader border-4 border-gray-200 h-12 w-12 rounded-full"></div>
 </div>
 
-<div id="app" class="hidden">
+<div class="p-6">
 
 <h1 class="text-2xl font-bold mb-6">SSC Super 30 Attendance Dashboard</h1>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
-<div class="bg-white p-4 rounded shadow">
+<div class="bg-white p-4 rounded-xl shadow">
 <p class="text-gray-500">Total Students</p>
-<p class="text-3xl font-bold" id="totalStudents">0</p>
+<h2 class="text-3xl font-bold" id="total">0</h2>
 </div>
 
-<div class="bg-white p-4 rounded shadow">
+<div class="bg-white p-4 rounded-xl shadow">
 <p class="text-gray-500">Present</p>
-<p class="text-3xl font-bold" id="presentStudents">0</p>
+<h2 class="text-3xl font-bold" id="present">0</h2>
 </div>
 
-<div class="bg-white p-4 rounded shadow">
+<div class="bg-white p-4 rounded-xl shadow">
 <p class="text-gray-500">Attendance %</p>
-<p class="text-3xl font-bold" id="attendancePercent">0%</p>
+<h2 class="text-3xl font-bold" id="percent">0%</h2>
 </div>
 
 </div>
 
-<div class="mb-4">
-<input id="searchInput" type="text" placeholder="Search student..."
-class="border p-2 rounded w-full md:w-64">
-</div>
+<input id="search" placeholder="Search student..." class="border p-2 rounded w-full mb-4">
 
-<div class="bg-white rounded shadow overflow-x-auto">
+<div class="bg-white rounded-xl shadow overflow-auto">
 
-<table class="w-full text-sm">
+<table class="w-full text-left">
 
-<thead class="bg-gray-100">
-
+<thead class="bg-gray-100 text-sm">
 <tr>
-<th class="p-3 text-left">Name</th>
-<th class="p-3 text-left">Date</th>
-<th class="p-3 text-left">Status</th>
-<th class="p-3 text-center">Fajr</th>
-<th class="p-3 text-center">Zuhr</th>
-<th class="p-3 text-center">Asr</th>
-<th class="p-3 text-center">Maghrib</th>
-<th class="p-3 text-center">Isha</th>
+<th class="p-3">Name</th>
+<th class="p-3">Date</th>
+<th class="p-3">Status</th>
+<th class="p-3">Fajr</th>
+<th class="p-3">Zuhr</th>
+<th class="p-3">Asr</th>
+<th class="p-3">Maghrib</th>
+<th class="p-3">Isha</th>
 </tr>
-
 </thead>
 
-<tbody id="tableBody"></tbody>
+<tbody id="table"></tbody>
 
 </table>
 
@@ -97,133 +79,85 @@ class="border p-2 rounded w-full md:w-64">
 
 <script>
 
-const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT/pub?output=csv";
+const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT/pub?output=csv"
 
-let data=[];
+let data=[]
 
-async function fetchData(){
+function loadData(){
 
-try{
+fetch(CSV_URL)
+.then(res=>res.text())
+.then(text=>{
 
-const res=await fetch(CSV_URL);
+const rows=text.split("\n").map(r=>r.split(","))
 
-const text=await res.text();
+data=rows.slice(1)
 
-const rows=text.split("\n").map(r=>r.split(","));
+renderTable(data)
 
-const headers=rows.shift();
+document.getElementById("total").innerText=data.length
 
-data=rows.map(row=>({
+let present=data.filter(r=>r[2]?.toLowerCase()=="present").length
+document.getElementById("present").innerText=present
 
-name:row[0],
-date:row[1],
-status:row[2],
-fajr:row[3],
-zuhr:row[4],
-asr:row[5],
-maghrib:row[6],
-isha:row[7]
+document.getElementById("percent").innerText=
+data.length?Math.round((present/data.length)*100)+"%":"0%"
 
-}));
+document.getElementById("loading").style.display="none"
 
-renderTable(data);
-updateStats();
-
-document.getElementById("loading").style.display="none";
-document.getElementById("app").style.display="block";
-
-}catch(e){
-
-console.error(e);
-
-}
+})
 
 }
 
 function renderTable(rows){
 
-const tbody=document.getElementById("tableBody");
+const table=document.getElementById("table")
 
-tbody.innerHTML="";
+table.innerHTML=""
 
 rows.forEach(r=>{
 
-tbody.innerHTML+=`
+table.innerHTML+=`
 
-<tr class="border-t">
+<tr class="border-b">
 
-<td class="p-3">${r.name}</td>
+<td class="p-3 font-medium">${r[0]||""}</td>
 
-<td class="p-3">${r.date}</td>
+<td class="p-3">${r[1]||""}</td>
 
 <td class="p-3">
-
-<span class="px-2 py-1 rounded text-xs ${r.status?.toLowerCase()==="present"?"status-present":"status-absent"}">
-
-${r.status}
-
+<span class="px-2 py-1 rounded text-xs ${
+(r[2]||"").toLowerCase()=="present"?"status-present":"status-absent"
+}">
+${r[2]||""}
 </span>
-
 </td>
 
-<td class="p-3 text-center">${icon(r.fajr)}</td>
-<td class="p-3 text-center">${icon(r.zuhr)}</td>
-<td class="p-3 text-center">${icon(r.asr)}</td>
-<td class="p-3 text-center">${icon(r.maghrib)}</td>
-<td class="p-3 text-center">${icon(r.isha)}</td>
+<td class="p-3">${r[3]||""}</td>
+<td class="p-3">${r[4]||""}</td>
+<td class="p-3">${r[5]||""}</td>
+<td class="p-3">${r[6]||""}</td>
+<td class="p-3">${r[7]||""}</td>
 
 </tr>
 
-`;
+`
 
-});
-
-}
-
-function icon(v){
-
-if(!v) return "";
-
-const s=v.toLowerCase();
-
-if(["yes","p","present","true"].includes(s)){
-
-return '<i class="fas fa-check text-green-600"></i>';
+})
 
 }
 
-return '<i class="fas fa-times text-red-600"></i>';
+document.getElementById("search").addEventListener("input",e=>{
 
-}
+let val=e.target.value.toLowerCase()
 
-function updateStats(){
+renderTable(data.filter(r=>r[0]?.toLowerCase().includes(val)))
 
-const total=data.length;
+})
 
-const present=data.filter(d=>d.status?.toLowerCase()==="present").length;
+loadData()
 
-document.getElementById("totalStudents").innerText=total;
-document.getElementById("presentStudents").innerText=present;
-
-document.getElementById("attendancePercent").innerText=
-
-total?Math.round((present/total)*100)+"%":"0%";
-
-}
-
-document.getElementById("searchInput").addEventListener("input",e=>{
-
-const q=e.target.value.toLowerCase();
-
-const filtered=data.filter(d=>d.name?.toLowerCase().includes(q));
-
-renderTable(filtered);
-
-});
-
-fetchData();
-
-setInterval(fetchData,30000);
+setInterval(loadData,30000)
 
 </script>
 
