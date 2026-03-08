@@ -1,165 +1,616 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
 
-<title>SSC Super 30 Dashboard</title>
+        .sidebar-item.active {
+            background-color: #3b82f6;
+            color: white;
+        }
 
-<script src="https://cdn.tailwindcss.com"></script>
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
 
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
 
-<style>
-body{font-family:Arial;background:#f1f5f9}
-.loader{border-top-color:#3498db;animation:spin 1s linear infinite}
-@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-.status-present{background:#dcfce7;color:#166534}
-.status-absent{background:#fee2e2;color:#991b1b}
-</style>
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
+        .status-present { background-color: #dcfce7; color: #166534; }
+        .status-absent { background-color: #fee2e2; color: #991b1b; }
+        
+        .prayer-done { color: #059669; }
+        .prayer-missed { color: #dc2626; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
 </head>
+<body class="overflow-x-hidden">
 
-<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+        <h2 class="text-center text-gray-600 text-xl font-semibold">Loading Live Data...</h2>
+        <p class="text-gray-400 text-sm mt-2">Syncing with Google Sheets CSV</p>
+        <div id="errorMessage" class="hidden mt-4 p-4 bg-red-50 text-red-600 rounded-lg text-sm max-w-xs text-center"></div>
+    </div>
 
-<div id="loading" class="fixed inset-0 flex items-center justify-center bg-white">
-<div class="loader border-4 border-gray-200 h-12 w-12 rounded-full"></div>
-</div>
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transition-transform -translate-x-full md:translate-x-0">
+            <div class="flex flex-col h-full">
+                <div class="p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <i class="fas fa-user-check text-white text-xl"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-800">Attendly</h1>
+                    </div>
+                </div>
 
-<div class="p-6">
+                <!-- Month Selection -->
+                <div class="px-6 mb-4">
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Select Month</label>
+                    <div class="relative">
+                        <select id="monthSelector" onchange="handleMonthChange()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                            <option value="All">All Data</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
 
-<h1 class="text-2xl font-bold mb-6">SSC Super 30 Attendance Dashboard</h1>
+                <nav class="flex-1 px-4 space-y-2 py-2">
+                    <button onclick="showSection('dashboard')" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-gray-100" id="nav-dashboard">
+                        <i class="fas fa-chart-pie"></i>
+                        <span class="font-medium">Dashboard</span>
+                    </button>
+                    <button onclick="showSection('attendance')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-gray-100" id="nav-attendance">
+                        <i class="fas fa-calendar-check"></i>
+                        <span class="font-medium">Daily Attendance</span>
+                    </button>
+                    <button onclick="showSection('namaz')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-gray-100" id="nav-namaz">
+                        <i class="fas fa-mosque"></i>
+                        <span class="font-medium">Namaz Tracking</span>
+                    </button>
+                </nav>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="p-4 border-t border-gray-100">
+                    <div class="bg-blue-50 p-4 rounded-xl">
+                        <p class="text-xs text-blue-600 font-bold mb-1">AUTO REFRESH</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-blue-800" id="refreshTimer">30s remaining</span>
+                            <div class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
 
-<div class="bg-white p-4 rounded-xl shadow">
-<p class="text-gray-500">Total Students</p>
-<h2 class="text-3xl font-bold" id="total">0</h2>
-</div>
+        <!-- Main Content -->
+        <main class="flex-1 ml-0 md:ml-64 overflow-y-auto p-4 md:p-8">
+            <!-- Mobile Header -->
+            <div class="md:hidden flex items-center justify-between mb-6 bg-white p-4 rounded-xl shadow-sm">
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 p-1.5 rounded-lg">
+                        <i class="fas fa-user-check text-white text-sm"></i>
+                    </div>
+                    <span class="font-bold text-gray-800">Attendly</span>
+                </div>
+                <button onclick="toggleSidebar()" class="p-2 text-gray-600">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
 
-<div class="bg-white p-4 rounded-xl shadow">
-<p class="text-gray-500">Present</p>
-<h2 class="text-3xl font-bold" id="present">0</h2>
-</div>
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="space-y-6">
+                <header>
+                    <h2 class="text-2xl font-bold text-gray-800">Dashboard Overview</h2>
+                    <p class="text-gray-500" id="currentDateDisplay">Today is Loading...</p>
+                </header>
 
-<div class="bg-white p-4 rounded-xl shadow">
-<p class="text-gray-500">Attendance %</p>
-<h2 class="text-3xl font-bold" id="percent">0%</h2>
-</div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="bg-blue-100 p-3 rounded-xl text-blue-600">
+                                <i class="fas fa-users text-xl"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-500 font-medium">Total Students</h3>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="stat-total">0</p>
+                    </div>
 
-</div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="bg-green-100 p-3 rounded-xl text-green-600">
+                                <i class="fas fa-user-check text-xl"></i>
+                            </div>
+                            <span class="text-xs font-bold px-2 py-1 rounded-full bg-green-50 text-green-600" id="attendance-percent">0%</span>
+                        </div>
+                        <h3 class="text-gray-500 font-medium">Present in <span class="selected-month-label">Month</span></h3>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="stat-attendance">0</p>
+                    </div>
 
-<input id="search" placeholder="Search student..." class="border p-2 rounded w-full mb-4">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="bg-purple-100 p-3 rounded-xl text-purple-600">
+                                <i class="fas fa-pray text-xl"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-500 font-medium">Namaz Participation</h3>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="stat-namaz">0</p>
+                    </div>
+                </div>
 
-<div class="bg-white rounded-xl shadow overflow-auto">
+                <!-- Recent Activity -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-50 flex justify-between items-center">
+                        <h3 class="font-bold text-gray-800 text-lg">Monthly Students View</h3>
+                        <button onclick="showSection('attendance')" class="text-blue-600 text-sm font-semibold hover:underline">View All</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="px-6 py-4">Student Name</th>
+                                    <th class="px-6 py-4">Month</th>
+                                    <th class="px-6 py-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-quick-table" class="divide-y divide-gray-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-<table class="w-full text-left">
+            <!-- Attendance Section -->
+            <section id="section-attendance" class="hidden space-y-6">
+                <header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Daily Attendance</h2>
+                        <p class="text-gray-500">History for <span class="selected-month-label">selected month</span></p>
+                    </div>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="attendance-search" placeholder="Search by name..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64">
+                    </div>
+                </header>
 
-<thead class="bg-gray-100 text-sm">
-<tr>
-<th class="p-3">Name</th>
-<th class="p-3">Date</th>
-<th class="p-3">Status</th>
-<th class="p-3">Fajr</th>
-<th class="p-3">Zuhr</th>
-<th class="p-3">Asr</th>
-<th class="p-3">Maghrib</th>
-<th class="p-3">Isha</th>
-</tr>
-</thead>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100" onclick="sortData('attendance', 'name')">Name <i class="fas fa-sort ml-1"></i></th>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100" onclick="sortData('attendance', 'date')">Date <i class="fas fa-sort ml-1"></i></th>
+                                    <th class="px-6 py-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendance-table-body" class="divide-y divide-gray-50 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-<tbody id="table"></tbody>
+            <!-- Namaz Attendance Section -->
+            <section id="section-namaz" class="hidden space-y-6">
+                <header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Namaz Tracking</h2>
+                        <p class="text-gray-500">Prayer participation for <span class="selected-month-label">selected month</span></p>
+                    </div>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="namaz-search" placeholder="Search students..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64">
+                    </div>
+                </header>
 
-</table>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="px-6 py-4">Student Name</th>
+                                    <th class="px-6 py-4 text-center">Fajr</th>
+                                    <th class="px-6 py-4 text-center">Zuhr</th>
+                                    <th class="px-6 py-4 text-center">Asr</th>
+                                    <th class="px-6 py-4 text-center">Maghrib</th>
+                                    <th class="px-6 py-4 text-center">Isha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="namaz-table-body" class="divide-y divide-gray-50 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
-</div>
+    <script>
+        // CONFIGURATION - Updated to the new Google Sheet Link provided by the user
+        const SHEET_ID = '2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT';
+        // Using pub?output=csv format for best speed and reliability
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`;
+        const REFRESH_INTERVAL = 30;
 
-</div>
+        let rawStudentsData = []; 
+        let studentsData = [];    
+        let namazData = [];       
+        let availableMonths = new Set();
+        let selectedMonth = "All";
+        let countdown = REFRESH_INTERVAL;
+        let sortState = { col: 'name', dir: 'asc' };
 
-<script>
+        window.onload = () => {
+            updateClock();
+            fetchData();
+            startAutoRefresh();
+            
+            document.getElementById('attendance-search').addEventListener('input', (e) => renderAttendanceTable(e.target.value));
+            document.getElementById('namaz-search').addEventListener('input', (e) => renderNamazTable(e.target.value));
+        };
 
-const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT/pub?output=csv"
+        async function fetchData() {
+            const proxies = [
+                (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+            ];
 
-let data=[]
+            let success = false;
+            let lastError = "";
 
-function loadData(){
+            // Show refreshing indicator
+            const timerLabel = document.getElementById('refreshTimer');
+            timerLabel.classList.add('animate-pulse');
 
-fetch(CSV_URL)
-.then(res=>res.text())
-.then(text=>{
+            for (const proxy of proxies) {
+                try {
+                    const response = await fetch(proxy(CSV_URL));
+                    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                    
+                    const csvText = await response.text();
+                    
+                    // Basic validation that we received CSV-like data and not an error page
+                    if (csvText.length < 50 || csvText.includes('<!DOCTYPE html>') || csvText.includes('Oops')) {
+                        throw new Error("Received invalid data format (likely an error page)");
+                    }
 
-const rows=text.split("\n").map(r=>r.split(","))
+                    const rows = parseCSV(csvText);
+                    if (rows.length > 1) { // Need at least header + 1 data row
+                        processCSVData(rows);
+                        success = true;
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        document.getElementById('errorMessage').classList.add('hidden');
+                        break; 
+                    }
+                } catch (e) {
+                    lastError = e.message;
+                    console.warn(`Proxy failed: ${e.message}`);
+                }
+            }
 
-data=rows.slice(1)
+            timerLabel.classList.remove('animate-pulse');
 
-renderTable(data)
+            if (!success) {
+                console.error("All data fetch attempts failed.");
+                showError("Unable to load data. Please check if your Google Sheet is 'Published to the Web' as a CSV.");
+                const errBox = document.getElementById('errorMessage');
+                errBox.innerText = `Error: ${lastError}. Make sure the sheet is public.`;
+                errBox.classList.remove('hidden');
+            }
+        }
 
-document.getElementById("total").innerText=data.length
+        // Improved CSV Parser to handle quotes and line breaks
+        function parseCSV(text) {
+            const rows = [];
+            let row = [];
+            let col = '';
+            let inQuotes = false;
 
-let present=data.filter(r=>r[2]?.toLowerCase()=="present").length
-document.getElementById("present").innerText=present
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
 
-document.getElementById("percent").innerText=
-data.length?Math.round((present/data.length)*100)+"%":"0%"
+                if (inQuotes) {
+                    if (char === '"' && nextChar === '"') {
+                        col += '"';
+                        i++;
+                    } else if (char === '"') {
+                        inQuotes = false;
+                    } else {
+                        col += char;
+                    }
+                } else {
+                    if (char === '"') {
+                        inQuotes = true;
+                    } else if (char === ',') {
+                        row.push(col.trim());
+                        col = '';
+                    } else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+                        row.push(col.trim());
+                        rows.push(row);
+                        row = [];
+                        col = '';
+                        if (char === '\r') i++;
+                    } else {
+                        col += char;
+                    }
+                }
+            }
+            if (col || row.length > 0) {
+                row.push(col.trim());
+                rows.push(row);
+            }
+            return rows.filter(r => r.length > 0 && r.some(c => c !== ""));
+        }
 
-document.getElementById("loading").style.display="none"
+        function processCSVData(rows) {
+            let headerIndex = -1;
+            
+            // Auto-detect columns based on header names
+            let nameIdx = 0, dateIdx = 1, statusIdx = 2, monthIdx = -1;
+            let namazIndices = [];
 
-})
+            for (let i = 0; i < Math.min(rows.length, 5); i++) {
+                const row = rows[i];
+                const foundName = row.findIndex(c => c.toLowerCase().includes('name'));
+                if (foundName !== -1) {
+                    headerIndex = i;
+                    nameIdx = foundName;
+                    
+                    // Look for other columns relative to the header
+                    dateIdx = row.findIndex(c => c.toLowerCase().includes('date'));
+                    statusIdx = row.findIndex(c => c.toLowerCase().includes('status'));
+                    monthIdx = row.findIndex(c => c.toLowerCase().includes('month'));
+                    
+                    // Find Namaz columns (common names)
+                    const namazKeywords = ['fajr', 'zuhr', 'asr', 'maghrib', 'isha'];
+                    namazIndices = namazKeywords.map(kw => row.findIndex(c => c.toLowerCase().includes(kw)));
+                    
+                    // Fallback for Namaz if not named: assume columns 4-8 if they exist
+                    if (namazIndices.every(idx => idx === -1) && row.length >= 8) {
+                        namazIndices = [3, 4, 5, 6, 7];
+                    }
+                    break;
+                }
+            }
 
-}
+            if (headerIndex === -1) headerIndex = 0; // Fallback to first row
 
-function renderTable(rows){
+            const invalidKeywords = ['total', 'grand', 'name', 'student', 'summary', 'id'];
+            const rawDataRows = rows.slice(headerIndex + 1);
 
-const table=document.getElementById("table")
+            rawStudentsData = rawDataRows.filter(row => {
+                const name = (row[nameIdx] || '').trim();
+                if (!name || name === "0") return false;
+                if (invalidKeywords.some(kw => name.toLowerCase().includes(kw))) return false;
+                return true;
+            }).map(row => {
+                let month = "Unknown";
+                if (monthIdx !== -1 && row[monthIdx]) {
+                    month = row[monthIdx];
+                } else {
+                    // Try to extract month from date string
+                    const dateStr = row[dateIdx] || '';
+                    const dateObj = new Date(dateStr);
+                    if (!isNaN(dateObj)) {
+                        month = dateObj.toLocaleString('default', { month: 'long' });
+                    } else {
+                        // Fallback parsing for common DD/MM formats
+                        const parts = dateStr.split(/[/ -]/);
+                        if (parts.length >= 2) month = "Month " + parts[1];
+                    }
+                }
+                availableMonths.add(month);
+                
+                return {
+                    name: row[nameIdx] || 'Unknown',
+                    date: row[dateIdx] || '',
+                    status: row[statusIdx] || 'Absent',
+                    month: month,
+                    namaz: namazIndices.map(idx => row[idx] || 'No')
+                };
+            });
 
-table.innerHTML=""
+            updateMonthSelector();
+            filterAndRender();
+        }
 
-rows.forEach(r=>{
+        function updateMonthSelector() {
+            const selector = document.getElementById('monthSelector');
+            const currentVal = selector.value;
+            selector.innerHTML = '<option value="All">All Data</option>';
+            
+            // Sort months (simple string sort for now)
+            Array.from(availableMonths).sort().forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.innerText = m;
+                selector.appendChild(opt);
+            });
+            
+            if (currentVal && availableMonths.has(currentVal)) {
+                selector.value = currentVal;
+            }
+        }
 
-table.innerHTML+=`
+        function handleMonthChange() {
+            selectedMonth = document.getElementById('monthSelector').value;
+            filterAndRender();
+        }
 
-<tr class="border-b">
+        function filterAndRender() {
+            const filtered = selectedMonth === "All" 
+                ? rawStudentsData 
+                : rawStudentsData.filter(d => d.month === selectedMonth);
 
-<td class="p-3 font-medium">${r[0]||""}</td>
+            studentsData = filtered;
+            
+            namazData = filtered.map(d => ({
+                name: d.name,
+                fajr: d.namaz[0],
+                zuhr: d.namaz[1],
+                asr: d.namaz[2],
+                maghrib: d.namaz[3],
+                isha: d.namaz[4]
+            }));
 
-<td class="p-3">${r[1]||""}</td>
+            document.querySelectorAll('.selected-month-label').forEach(el => {
+                el.innerText = selectedMonth === "All" ? "All Months" : selectedMonth;
+            });
 
-<td class="p-3">
-<span class="px-2 py-1 rounded text-xs ${
-(r[2]||"").toLowerCase()=="present"?"status-present":"status-absent"
-}">
-${r[2]||""}
-</span>
-</td>
+            updateDashboardStats();
+            renderAttendanceTable();
+            renderNamazTable();
+            renderQuickTable();
+        }
 
-<td class="p-3">${r[3]||""}</td>
-<td class="p-3">${r[4]||""}</td>
-<td class="p-3">${r[5]||""}</td>
-<td class="p-3">${r[6]||""}</td>
-<td class="p-3">${r[7]||""}</td>
+        function updateDashboardStats() {
+            // Stats should reflect unique student identity where possible
+            const totalUniqueNames = new Set(rawStudentsData.map(s => s.name)).size;
+            const present = studentsData.filter(s => s.status?.toLowerCase().includes('p')).length;
+            
+            const namazParticipated = namazData.filter(n => 
+                [n.fajr, n.zuhr, n.asr, n.maghrib, n.isha].some(p => {
+                    const s = (p || '').toLowerCase();
+                    return ['yes', 'present', 'true', 'p', '1'].includes(s);
+                })
+            ).length;
+            
+            document.getElementById('stat-total').innerText = totalUniqueNames;
+            document.getElementById('stat-attendance').innerText = present;
+            document.getElementById('stat-namaz').innerText = namazParticipated;
+            
+            const totalInSelection = studentsData.length;
+            const percent = totalInSelection > 0 ? Math.round((present / totalInSelection) * 100) : 0;
+            document.getElementById('attendance-percent').innerText = `${percent}%`;
+        }
 
-</tr>
+        function renderQuickTable() {
+            const container = document.getElementById('dashboard-quick-table');
+            container.innerHTML = studentsData.slice(0, 10).map(item => `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-gray-800">${item.name}</td>
+                    <td class="px-6 py-4 text-gray-500 text-sm">${item.month}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${item.status.toLowerCase().startsWith('p') ? 'status-present' : 'status-absent'}">
+                            ${item.status}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+            if (studentsData.length === 0) container.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-400 italic">No data found</td></tr>';
+        }
 
-`
+        function renderAttendanceTable(search = '') {
+            const container = document.getElementById('attendance-table-body');
+            let filtered = studentsData.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
+            
+            filtered.sort((a, b) => {
+                let valA = (a[sortState.col] || '').toLowerCase();
+                let valB = (b[sortState.col] || '').toLowerCase();
+                return sortState.dir === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            });
 
-})
+            container.innerHTML = filtered.map(item => `
+                <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+                    <td class="px-6 py-4 font-medium">${item.name}</td>
+                    <td class="px-6 py-4 text-gray-600">${item.date}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${item.status.toLowerCase().startsWith('p') ? 'status-present' : 'status-absent'}">
+                            ${item.status}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-}
+        function renderNamazTable(search = '') {
+            const container = document.getElementById('namaz-table-body');
+            const filtered = namazData.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
 
-document.getElementById("search").addEventListener("input",e=>{
+            const getIcon = (s) => {
+                const status = (s || '').toLowerCase();
+                if(['yes', 'present', 'true', 'p', '1'].includes(status)) 
+                    return '<i class="fas fa-check-circle prayer-done text-lg"></i>';
+                return '<i class="fas fa-times-circle prayer-missed text-lg"></i>';
+            };
 
-let val=e.target.value.toLowerCase()
+            container.innerHTML = filtered.map(item => `
+                <tr class="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+                    <td class="px-6 py-4 font-medium">${item.name}</td>
+                    <td class="px-6 py-4 text-center">${getIcon(item.fajr)}</td>
+                    <td class="px-6 py-4 text-center">${getIcon(item.zuhr)}</td>
+                    <td class="px-6 py-4 text-center">${getIcon(item.asr)}</td>
+                    <td class="px-6 py-4 text-center">${getIcon(item.maghrib)}</td>
+                    <td class="px-6 py-4 text-center">${getIcon(item.isha)}</td>
+                </tr>
+            `).join('');
+        }
 
-renderTable(data.filter(r=>r[0]?.toLowerCase().includes(val)))
+        function sortData(section, column) {
+            if (sortState.col === column) sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+            else { sortState.col = column; sortState.dir = 'asc'; }
+            renderAttendanceTable(document.getElementById('attendance-search').value);
+        }
 
-})
+        function startAutoRefresh() {
+            setInterval(() => {
+                countdown--;
+                if (countdown <= 0) { 
+                    countdown = REFRESH_INTERVAL; 
+                    fetchData(); 
+                }
+                document.getElementById('refreshTimer').innerText = `${countdown}s remaining`;
+            }, 1000);
+        }
 
-loadData()
+        function showSection(id) {
+            ['dashboard', 'attendance', 'namaz'].forEach(s => {
+                document.getElementById(`section-${s}`).classList.toggle('hidden', s !== id);
+                document.getElementById(`nav-${s}`).classList.toggle('active', s === id);
+            });
+            if (window.innerWidth < 768) toggleSidebar();
+        }
 
-setInterval(loadData,30000)
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 
-</script>
+        function updateClock() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateDisplay').innerText = `Today is ${new Date().toLocaleDateString(undefined, options)}`;
+        }
 
+        function showError(msg) {
+            const existing = document.querySelector('.err-toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = "err-toast fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center gap-3 transition-opacity duration-500";
+            toast.innerHTML = `<i class="fas fa-exclamation-circle text-yellow-400"></i> <span>${msg}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 7000);
+        }
+    </script>
 </body>
 </html>
