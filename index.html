@@ -1,4 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Student Attendance</title>
+
+<style>
+
+body{
+font-family: Arial;
+background:#f4f4f4;
+text-align:center;
+}
+
+table{
+margin:auto;
+border-collapse:collapse;
+width:80%;
+background:white;
+}
+
+th,td{
+padding:10px;
+border:1px solid #ccc;
+}
+
+th{
+background:#2c7be5;
+color:white;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Student Attendance</h1>
+
+<table id="sheetTable"></table>
+
 <script>
+
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv";
 
 fetch(sheetURL)
@@ -26,4 +67,8 @@ table.innerHTML += tr;
 });
 
 });
+
 </script>
+
+</body>
+</html>
