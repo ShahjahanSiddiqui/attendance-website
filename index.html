@@ -1,189 +1,229 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>SSC Super 30 Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Attendance Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
 <style>
 
 body{
-margin:0;
-font-family:Segoe UI,Arial;
-background:#f1f5f9;
+font-family:Arial;
+background:#f8fafc;
 }
 
-header{
-background:#0f172a;
-color:white;
-padding:15px 25px;
-font-size:22px;
-font-weight:bold;
+.loader{
+border-top-color:#3498db;
+animation:spin 1s linear infinite;
 }
 
-.container{
-width:95%;
-margin:auto;
-margin-top:20px;
+@keyframes spin{
+0%{transform:rotate(0deg);}
+100%{transform:rotate(360deg);}
 }
 
-.topbar{
-display:flex;
-justify-content:space-between;
-flex-wrap:wrap;
-margin-bottom:15px;
-}
-
-select,input{
-padding:8px;
-border-radius:6px;
-border:1px solid #cbd5e1;
-}
-
-.cards{
-display:flex;
-gap:15px;
-flex-wrap:wrap;
-margin-bottom:20px;
-}
-
-.card{
-flex:1;
-background:white;
-padding:15px;
-border-radius:10px;
-box-shadow:0 4px 12px rgba(0,0,0,0.08);
-text-align:center;
-}
-
-.card h2{
-margin:5px 0;
-color:#2563eb;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-background:white;
-border-radius:10px;
-overflow:hidden;
-box-shadow:0 4px 12px rgba(0,0,0,0.08);
-}
-
-th{
-background:#2563eb;
-color:white;
-padding:8px;
-font-size:13px;
-}
-
-td{
-padding:6px;
-border-bottom:1px solid #eee;
-font-size:12px;
-text-align:center;
-}
-
-tr:hover{
-background:#f1f5f9;
-}
+.status-present{background:#dcfce7;color:#166534;}
+.status-absent{background:#fee2e2;color:#991b1b;}
 
 </style>
 
 </head>
 
-<body>
+<body class="p-6">
 
-<header>
-SSC Super 30 Attendance Dashboard
-</header>
+<div id="loading" class="flex flex-col items-center justify-center">
+<div class="loader border-4 border-gray-200 rounded-full h-10 w-10 mb-4"></div>
+<p class="text-gray-500">Loading Google Sheet Data...</p>
+</div>
 
-<div class="container">
+<div id="app" class="hidden">
 
-<div class="topbar">
+<h1 class="text-2xl font-bold mb-6">SSC Super 30 Attendance Dashboard</h1>
 
-<input type="text" id="search" placeholder="Search Student">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+<div class="bg-white p-4 rounded shadow">
+<p class="text-gray-500">Total Students</p>
+<p class="text-3xl font-bold" id="totalStudents">0</p>
+</div>
+
+<div class="bg-white p-4 rounded shadow">
+<p class="text-gray-500">Present</p>
+<p class="text-3xl font-bold" id="presentStudents">0</p>
+</div>
+
+<div class="bg-white p-4 rounded shadow">
+<p class="text-gray-500">Attendance %</p>
+<p class="text-3xl font-bold" id="attendancePercent">0%</p>
+</div>
 
 </div>
 
-<div class="cards">
-
-<div class="card">
-Total Students
-<h2 id="total">0</h2>
+<div class="mb-4">
+<input id="searchInput" type="text" placeholder="Search student..."
+class="border p-2 rounded w-full md:w-64">
 </div>
 
-<div class="card">
-Records Loaded
-<h2 id="present">0</h2>
-</div>
+<div class="bg-white rounded shadow overflow-x-auto">
+
+<table class="w-full text-sm">
+
+<thead class="bg-gray-100">
+
+<tr>
+<th class="p-3 text-left">Name</th>
+<th class="p-3 text-left">Date</th>
+<th class="p-3 text-left">Status</th>
+<th class="p-3 text-center">Fajr</th>
+<th class="p-3 text-center">Zuhr</th>
+<th class="p-3 text-center">Asr</th>
+<th class="p-3 text-center">Maghrib</th>
+<th class="p-3 text-center">Isha</th>
+</tr>
+
+</thead>
+
+<tbody id="tableBody"></tbody>
+
+</table>
 
 </div>
-
-<table id="sheetTable"></table>
 
 </div>
 
 <script>
 
-const sheetURL="https://docs.google.com/spreadsheets/d/e/2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT/pub?output=csv";
+const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT/pub?output=csv";
 
-function loadData(){
+let data=[];
 
-fetch(sheetURL)
-.then(res=>res.text())
-.then(data=>{
+async function fetchData(){
 
-let rows=data.split("\n");
-let table=document.getElementById("sheetTable");
+try{
 
-table.innerHTML="";
+const res=await fetch(CSV_URL);
 
-rows.forEach((row,i)=>{
+const text=await res.text();
 
-let cols=row.split(",");
-let tr="<tr>";
+const rows=text.split("\n").map(r=>r.split(","));
 
-cols.forEach(col=>{
-if(i==0){
-tr+="<th>"+col+"</th>";
-}else{
-tr+="<td>"+col+"</td>";
+const headers=rows.shift();
+
+data=rows.map(row=>({
+
+name:row[0],
+date:row[1],
+status:row[2],
+fajr:row[3],
+zuhr:row[4],
+asr:row[5],
+maghrib:row[6],
+isha:row[7]
+
+}));
+
+renderTable(data);
+updateStats();
+
+document.getElementById("loading").style.display="none";
+document.getElementById("app").style.display="block";
+
+}catch(e){
+
+console.error(e);
+
 }
-});
 
-tr+="</tr>";
-table.innerHTML+=tr;
+}
 
-});
+function renderTable(rows){
 
-document.getElementById("total").innerText=rows.length-1;
-document.getElementById("present").innerText=rows.length-1;
+const tbody=document.getElementById("tableBody");
+
+tbody.innerHTML="";
+
+rows.forEach(r=>{
+
+tbody.innerHTML+=`
+
+<tr class="border-t">
+
+<td class="p-3">${r.name}</td>
+
+<td class="p-3">${r.date}</td>
+
+<td class="p-3">
+
+<span class="px-2 py-1 rounded text-xs ${r.status?.toLowerCase()==="present"?"status-present":"status-absent"}">
+
+${r.status}
+
+</span>
+
+</td>
+
+<td class="p-3 text-center">${icon(r.fajr)}</td>
+<td class="p-3 text-center">${icon(r.zuhr)}</td>
+<td class="p-3 text-center">${icon(r.asr)}</td>
+<td class="p-3 text-center">${icon(r.maghrib)}</td>
+<td class="p-3 text-center">${icon(r.isha)}</td>
+
+</tr>
+
+`;
 
 });
 
 }
 
-loadData();
+function icon(v){
 
-setInterval(loadData,30000);
+if(!v) return "";
 
-document.getElementById("search").addEventListener("keyup",function(){
+const s=v.toLowerCase();
 
-let filter=this.value.toLowerCase();
-let rows=document.querySelectorAll("#sheetTable tr");
+if(["yes","p","present","true"].includes(s)){
 
-rows.forEach((row,i)=>{
+return '<i class="fas fa-check text-green-600"></i>';
 
-if(i==0)return;
+}
 
-let text=row.innerText.toLowerCase();
+return '<i class="fas fa-times text-red-600"></i>';
 
-row.style.display=text.includes(filter)?"":"none";
+}
+
+function updateStats(){
+
+const total=data.length;
+
+const present=data.filter(d=>d.status?.toLowerCase()==="present").length;
+
+document.getElementById("totalStudents").innerText=total;
+document.getElementById("presentStudents").innerText=present;
+
+document.getElementById("attendancePercent").innerText=
+
+total?Math.round((present/total)*100)+"%":"0%";
+
+}
+
+document.getElementById("searchInput").addEventListener("input",e=>{
+
+const q=e.target.value.toLowerCase();
+
+const filtered=data.filter(d=>d.name?.toLowerCase().includes(q));
+
+renderTable(filtered);
 
 });
 
-});
+fetchData();
+
+setInterval(fetchData,30000);
 
 </script>
 
