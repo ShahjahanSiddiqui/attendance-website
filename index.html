@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html>
 <head>
 
@@ -20,13 +19,6 @@ color:white;
 padding:15px 25px;
 font-size:22px;
 font-weight:bold;
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
-
-header span{
-color:#38bdf8;
 }
 
 .container{
@@ -96,13 +88,6 @@ tr:hover{
 background:#f1f5f9;
 }
 
-footer{
-text-align:center;
-margin-top:20px;
-color:#64748b;
-font-size:12px;
-}
-
 </style>
 
 </head>
@@ -110,21 +95,12 @@ font-size:12px;
 <body>
 
 <header>
-SSC Super 30 <span>Attendance Dashboard</span>
+SSC Super 30 Attendance Dashboard
 </header>
 
 <div class="container">
 
 <div class="topbar">
-
-<select id="monthSelect">
-
-<option value="December">December</option>
-<option value="January">January</option>
-<option value="February">February</option>
-<option value="March">March</option>
-
-</select>
 
 <input type="text" id="search" placeholder="Search Student">
 
@@ -138,13 +114,8 @@ Total Students
 </div>
 
 <div class="card">
-Present Days
+Records Loaded
 <h2 id="present">0</h2>
-</div>
-
-<div class="card">
-Attendance %
-<h2 id="percent">0%</h2>
 </div>
 
 </div>
@@ -153,24 +124,13 @@ Attendance %
 
 </div>
 
-<footer>
-Live Data From Google Sheets
-</footer>
-
 <script>
 
-const sheetLinks={
+const sheetURL="https://docs.google.com/spreadsheets/d/e/2PACX-1vREs3GowLWu8vbOp0HZ2dcfve_U2ZKJDqYzNLu-hbPjq_cA0j1yQr5UpXs8iUA2nW54BpMeaFpVUZhT/pub?output=csv";
 
-December:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv",
-January:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv",
-February:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv",
-March:"https://docs.google.com/spreadsheets/d/e/2PACX-1vSMG_Yry35kTzPBFrdolRgpHFC2FxomWBfaJ7q0tymYiwEIsJRsEUta9K_brdBuUL_-l3a6w10DwvcD/pub?output=csv"
+function loadData(){
 
-};
-
-function loadData(month){
-
-fetch(sheetLinks[month])
+fetch(sheetURL)
 .then(res=>res.text())
 .then(data=>{
 
@@ -199,22 +159,14 @@ table.innerHTML+=tr;
 
 document.getElementById("total").innerText=rows.length-1;
 document.getElementById("present").innerText=rows.length-1;
-document.getElementById("percent").innerText="100%";
 
 });
 
 }
 
-loadData("December");
+loadData();
 
-document.getElementById("monthSelect").addEventListener("change",function(){
-loadData(this.value);
-});
-
-setInterval(()=>{
-let month=document.getElementById("monthSelect").value;
-loadData(month);
-},30000);
+setInterval(loadData,30000);
 
 document.getElementById("search").addEventListener("keyup",function(){
 
@@ -226,6 +178,7 @@ rows.forEach((row,i)=>{
 if(i==0)return;
 
 let text=row.innerText.toLowerCase();
+
 row.style.display=text.includes(filter)?"":"none";
 
 });
